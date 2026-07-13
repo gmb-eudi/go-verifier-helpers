@@ -55,7 +55,10 @@ func NewReader(g Getter, now func() time.Time) *Reader {
 // on a false cache-expired signal. Otherwise (no freshness record, or one
 // that is itself stale/expired) the miss is reported as ErrCacheExpired,
 // exactly as before — fail closed whenever there is no positive signal that
-// the absence was ever confirmed.
+// the absence was ever confirmed. This trusts the writer's atomic per-type
+// swap: if an individual territory key is lost out-of-band while the type's
+// freshness record survives, that territory reads as confirmed-empty (a
+// conservative false negative) rather than as a cache error.
 func (r *Reader) AnchorSet(ctx context.Context, keyType, territory string) (*AnchorSetEntry, error) {
 	raw, err := r.g.Get(ctx, AnchorSetKey(keyType, territory))
 	if err != nil {
