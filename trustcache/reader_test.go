@@ -22,7 +22,7 @@ func (f fakeGetter) Get(_ context.Context, key string) ([]byte, error) {
 	return v, nil
 }
 
-func entryJSON(t *testing.T, e trustcache.AnchorSetEntry) []byte {
+func entryJSON[T any](t *testing.T, e T) []byte {
 	t.Helper()
 	raw, err := json.Marshal(e)
 	qt.Assert(t, qt.IsNil(err))
@@ -69,6 +69,50 @@ func TestReaderAnchorSet(t *testing.T) {
 		got, err := trustcache.NewReader(g, clock).AnchorSet(ctx, trustcache.TypePIDProvider, "lv")
 		qt.Assert(t, qt.IsNil(err))
 		qt.Check(t, qt.Equals(got.Territory, "LV"))
+	})
+
+	// missing_key_but_type_fresh: the per-territory key was never written,
+	// but the type's OWN freshness record proves the most recent sync
+	// completed and is not stale/expired. That combination means "checked,
+	// confirmed zero anchors for this territory" — a writer only
+	// materializes per-territory keys for territories that actually have
+	// data, while it refreshes the type's freshness record on every cycle
+	// regardless. Report this as a confirmed-empty set, not an error, so a
+	// caller resolving a chain across multiple territories can keep trying
+	// the next one instead of aborting on a false "cache expired".
+	t.Run("missing_key_but_type_fresh_is_confirmed_empty_not_error", func(t *testing.T) {
+		fr := trustcache.TypeFreshness{SnapshotID: "snap-9", FetchedAt: now.Add(-5 * time.Minute), ValidUntil: now.Add(40 * time.Minute)}
+		g := fakeGetter{trustcache.FreshnessKey(trustcache.TypePIDProvider): entryJSON(t, fr)}
+		got, err := trustcache.NewReader(g, clock).AnchorSet(ctx, trustcache.TypePIDProvider, "LV")
+		qt.Assert(t, qt.IsNil(err))
+		qt.Check(t, qt.Equals(len(got.Anchors), 0))
+	})
+
+	// missing_key_and_no_freshness_record: fail-closed negative — no
+	// disambiguating signal exists at all, so behave exactly as before.
+	t.Run("missing_key_and_no_freshness_record_fails_closed", func(t *testing.T) {
+		_, err := trustcache.NewReader(fakeGetter{}, clock).AnchorSet(ctx, trustcache.TypePIDProvider, "LV")
+		qt.Check(t, qt.IsTrue(errors.Is(err, trustcache.ErrCacheExpired)))
+	})
+
+	// missing_key_and_stale_freshness: fail-closed negative — a freshness
+	// record exists but reports the upstream source as stale, so the
+	// missing territory key must still be treated as genuine degradation.
+	t.Run("missing_key_and_stale_freshness_fails_closed", func(t *testing.T) {
+		fr := trustcache.TypeFreshness{SnapshotID: "snap-9", FetchedAt: now.Add(-5 * time.Minute), ValidUntil: now.Add(40 * time.Minute), UpstreamStale: true}
+		g := fakeGetter{trustcache.FreshnessKey(trustcache.TypePIDProvider): entryJSON(t, fr)}
+		_, err := trustcache.NewReader(g, clock).AnchorSet(ctx, trustcache.TypePIDProvider, "LV")
+		qt.Check(t, qt.IsTrue(errors.Is(err, trustcache.ErrCacheExpired)))
+	})
+
+	// missing_key_and_expired_freshness: fail-closed negative — the
+	// freshness record's own ValidUntil has already passed, so the missing
+	// territory key must still fail closed, not be read as confirmed-empty.
+	t.Run("missing_key_and_expired_freshness_fails_closed", func(t *testing.T) {
+		fr := trustcache.TypeFreshness{SnapshotID: "snap-9", FetchedAt: now.Add(-time.Hour), ValidUntil: now.Add(-time.Minute)}
+		g := fakeGetter{trustcache.FreshnessKey(trustcache.TypePIDProvider): entryJSON(t, fr)}
+		_, err := trustcache.NewReader(g, clock).AnchorSet(ctx, trustcache.TypePIDProvider, "LV")
+		qt.Check(t, qt.IsTrue(errors.Is(err, trustcache.ErrCacheExpired)))
 	})
 }
 

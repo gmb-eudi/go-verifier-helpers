@@ -39,12 +39,38 @@ func NewReader(g Getter, now func() time.Time) *Reader {
 // ErrCacheExpired when the key is absent. Key TTL (set by the writer to the
 // entry's ValidUntil) is the expiry authority; the embedded timestamps are
 // provenance for reports and for a consumer's in-memory grace policy.
+//
+// A missing per-territory key is ambiguous on its own: it means EITHER this
+// type's cache never finished syncing / has gone stale (genuine
+// degradation), OR the most recent sync for this type is fresh and simply
+// never had data for this territory (a writer only materializes
+// per-territory keys for territories that actually have entries, while it
+// refreshes the type's freshness record every cycle regardless of that).
+// This method disambiguates using the type's own freshness record — the
+// same one Freshness (below) reports — before deciding: if that record is
+// present, not flagged upstream-stale, and not past its own validity
+// horizon, a missing per-territory key is reported as a confirmed-empty set
+// (nil error, zero anchors) rather than ErrCacheExpired, so a caller
+// resolving across multiple territories can keep trying rather than abort
+// on a false cache-expired signal. Otherwise (no freshness record, or one
+// that is itself stale/expired) the miss is reported as ErrCacheExpired,
+// exactly as before — fail closed whenever there is no positive signal that
+// the absence was ever confirmed.
 func (r *Reader) AnchorSet(ctx context.Context, keyType, territory string) (*AnchorSetEntry, error) {
 	raw, err := r.g.Get(ctx, AnchorSetKey(keyType, territory))
 	if err != nil {
 		return nil, fmt.Errorf("trustcache: get anchor set: %w", err)
 	}
 	if raw == nil {
+		if fr, ferr := r.Freshness(ctx, keyType); ferr == nil && !fr.UpstreamStale && r.now().Before(fr.ValidUntil) {
+			return &AnchorSetEntry{
+				SnapshotID: fr.SnapshotID,
+				Type:       keyType,
+				Territory:  NormalizeTerritory(territory),
+				FetchedAt:  fr.FetchedAt,
+				ValidUntil: fr.ValidUntil,
+			}, nil
+		}
 		return nil, fmt.Errorf("%w: %s/%s", ErrCacheExpired, keyType, NormalizeTerritory(territory))
 	}
 	var e AnchorSetEntry

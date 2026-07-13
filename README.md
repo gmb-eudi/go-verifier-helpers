@@ -16,6 +16,13 @@ go-verifier-helpers/
                  Reader: a single writer materializes trusted-list anchors
                  (valid_until honored as the key TTL, so expiry fails closed);
                  consumers read them warm behind a minimal Getter seam.
+                 Reader.AnchorSet distinguishes a per-territory entry that is
+                 missing because the type's cache is degraded (fails closed,
+                 ErrCacheExpired) from one missing because the type's own
+                 freshness record is fresh and the territory legitimately has
+                 no anchors (returns a confirmed-empty set, nil error) — a
+                 writer only materializes per-territory keys for territories
+                 that actually have data.
 ```
 
 ```go
