@@ -6,8 +6,8 @@ for whoever bumps the dependency.
 ## v0.0.4
 
 **Requires Go 1.27.0.** The `go` directive moves up from 1.26.6, so a consumer on an older
-toolchain will not build this version. Nothing else changed here — no source, no signature, no
-message text, and the dependency graph is untouched.
+toolchain will not build this version. **No source change**: every exported symbol, signature and
+behaviour is exactly as in v0.0.3, and nothing a consumer links moved.
 
 ### Added
 
@@ -26,6 +26,13 @@ message text, and the dependency graph is untouched.
 - **`go` directive 1.26.6 → 1.27.0** — the minimum Go version a consumer needs. The services
   in this project already required 1.27.0 while the libraries were the half still behind, so
   they are brought up together and the whole codebase now asks for one toolchain.
+- **Test-only dependencies moved, and none of them reaches your build**:
+  `alicebob/miniredis/v2` 2.38.0 → 2.39.0, `valkey-io/valkey-go` 1.0.76 → 1.0.77, and the indirect
+  `golang.org/x/sys` 0.43.0 → 0.47.0. **Measured, not assumed**: no non-test file in this library
+  imports any of them, and `go list -deps ./...` — the packages a consumer actually links — contains
+  none of the three. They exist for this library's own tests (an in-memory Valkey and a real client
+  against it), so bumping to v0.0.4 changes nothing in a consumer's dependency graph beyond the
+  toolchain line.
 
 ### Notes
 
