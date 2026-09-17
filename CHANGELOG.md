@@ -9,6 +9,18 @@ for whoever bumps the dependency.
 toolchain will not build this version. Nothing else changed here — no source, no signature, no
 message text, and the dependency graph is untouched.
 
+### Added
+
+- **`LICENSE`** — the MIT text this library has always been offered under, and which its README has
+  always stated, is now in the repository. Until now the published source carried the statement
+  without the grant, which left a consumer unable to rely on it. The text is byte-identical to the
+  other libraries in this organisation: MIT, `Copyright (c) 2026 go-make-bytes contributors`.
+  **v0.0.3 and earlier remain as published** — a module version on the Go proxy is immutable, so the
+  licence reaches consumers from this version on.
+- **`SECURITY.md`** — private vulnerability reporting through GitHub Security Advisories, the same
+  wording as the sibling libraries; and **`CODEOWNERS`**, so dependency and workflow changes need a
+  maintainer review.
+
 ### Changed
 
 - **`go` directive 1.26.6 → 1.27.0** — the minimum Go version a consumer needs. The services

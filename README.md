@@ -38,4 +38,4 @@ test-only dependencies; these never enter a consumer's production build.
 
 ## License
 
-MIT.
+MIT — see [`LICENSE`](LICENSE).
