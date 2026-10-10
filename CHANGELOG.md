@@ -3,6 +3,32 @@
 Notable changes to this library, newest first. Versions are git tags; this file is written
 for whoever bumps the dependency.
 
+## v0.0.5
+
+**Requires Go 1.27.2.** The `go` directive moves up from 1.27.0, so a consumer on an older
+toolchain will not build this version. **No source change**: every exported symbol, signature and
+behaviour is exactly as in v0.0.4.
+
+### Changed
+
+- **`go` directive 1.27.0 → 1.27.2**, the minimum Go version a consumer needs. No vulnerability in
+  Go 1.27.0 reached this library's code (`govulncheck` found none before the move either). The
+  minimum moves with the sibling libraries, which do need Go 1.27.2's security fixes, so a consumer
+  has one Go version to meet. Raise your own module's `go` directive to `1.27.2`; from there the go
+  command downloads and uses that toolchain by itself.
+- **Test-only dependencies moved, and none of them reaches your build**:
+  `alicebob/miniredis/v2` 2.39.0 → 2.40.0, `valkey-io/valkey-go` 1.0.77 → 1.0.78, and the indirect
+  `yuin/gopher-lua`, `rogpeppe/go-internal` and `golang.org/x/sys` with them.
+
+### Notes
+
+- The gate is green on Go 1.27.2: `go mod verify`, `go mod tidy -diff`, build, vet, `gofmt`,
+  golangci-lint v2.14.0, and `go test -race` with **0 races**. `govulncheck` reports **no
+  vulnerabilities found**.
+
+- Repository hygiene, with no effect on code that uses the library: CI's linter moved to
+  golangci-lint v2.14.0 (the earlier release cannot read Go 1.27.2's compiled standard library).
+
 ## v0.0.4
 
 **Requires Go 1.27.0.** The `go` directive moves up from 1.26.6, so a consumer on an older
