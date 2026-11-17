@@ -1,6 +1,6 @@
 module github.com/gmb-eudi/go-verifier-helpers
 
-go 1.27.2
+go 1.27.4
 
 require (
 	github.com/alicebob/miniredis/v2 v2.40.0
